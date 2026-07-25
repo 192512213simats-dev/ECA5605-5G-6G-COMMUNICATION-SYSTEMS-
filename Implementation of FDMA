@@ -1,0 +1,81 @@
+clc;
+clear;
+close all;
+
+%% Parameters
+fs = 1000;
+t = 0:1/fs:1;
+
+TBW = 600;          % Total Bandwidth (kHz)
+Users = 3;
+CBW = TBW/Users;
+
+fc = [100 300 500];
+
+%% Message Signal
+m = sin(2*pi*10*t);
+
+%% Modulated Signals
+s1 = m .* cos(2*pi*fc(1)*t);
+s2 = m .* cos(2*pi*fc(2)*t);
+s3 = m .* cos(2*pi*fc(3)*t);
+
+%% Data Rate
+BW = 200;
+M = 2;                  % BPSK
+DataRate = BW*log2(M);
+Rate = DataRate*ones(1,Users);
+
+%% SNR
+Ps = 1;
+Pn = [0.1 0.05 0.01];
+SNR = 10*log10(Ps./Pn);
+
+%% Display Results
+disp(' ');
+disp('User   Data Rate (kbps)');
+disp([(1:Users)' Rate']);
+
+disp(' ');
+disp('User   Noise Power(W)   SNR(dB)');
+disp([(1:Users)' Pn' SNR']);
+
+%% Figure
+figure;
+
+%---------------- Plot 1 ----------------%
+subplot(2,2,1);
+plot(t,s1,'r');
+hold on;
+plot(t,s2,'g');
+plot(t,s3,'b');
+hold off;
+grid on;
+title('FDMA Channel Allocation');
+xlabel('Time (s)');
+ylabel('Amplitude');
+legend('User 1','User 2','User 3');
+
+%---------------- Plot 2 ----------------%
+subplot(2,2,2);
+bar(1:Users,CBW*ones(1,Users));
+grid on;
+title('Channel Bandwidth per User');
+xlabel('Users');
+ylabel('Bandwidth (kHz)');
+
+%---------------- Plot 3 ----------------%
+subplot(2,2,3);
+bar(1:Users,Rate);
+grid on;
+title('FDMA Data Rate');
+xlabel('Users');
+ylabel('Data Rate (kbps)');
+
+%---------------- Plot 4 ----------------%
+subplot(2,2,4);
+bar(1:Users,SNR);
+grid on;
+title('Signal-to-Noise Ratio');
+xlabel('Users');
+ylabel('SNR (dB)');
