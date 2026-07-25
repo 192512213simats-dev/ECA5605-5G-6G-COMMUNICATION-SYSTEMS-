@@ -1,0 +1,86 @@
+clc;
+clear;
+close all;
+
+%% ------------------ TDMA Time Slot Structure ------------------
+FrameTime = 4.615;      % ms
+Slots = 8;
+SlotDuration = FrameTime/Slots;
+t = 0:SlotDuration:FrameTime;
+
+%% ------------------ Frame Utilization ------------------
+TotalSlots = 8;
+AllocatedSlots = 6;
+FreeSlots = TotalSlots - AllocatedSlots;
+Utilization = (AllocatedSlots/TotalSlots)*100;
+
+disp('Frame Utilization (%)')
+disp(Utilization)
+
+%% ------------------ User Slot Allocation ------------------
+Users = 1:8;
+AvailableSlots = 5;
+
+Alloc = zeros(1,8);
+Alloc(1:AvailableSlots) = 1;
+Blocked = 1 - Alloc;
+
+disp('User Wise Slot Allocation')
+disp([(Users)' Alloc'])
+
+%% ------------------ Create One Figure ------------------
+figure('Name','TDMA Simulation','NumberTitle','off');
+
+%% Plot 1 : TDMA Time Slot Structure
+subplot(3,2,1)
+stem(t,ones(size(t)),'filled')
+title('TDMA Time Slot Structure')
+xlabel('Time (ms)')
+ylabel('Slot Level')
+grid on
+
+%% Plot 2 : Continuous Slot Allocation
+subplot(3,2,2)
+plot(t,ones(size(t)),'-o','LineWidth',1.5)
+title('Continuous Slot Allocation')
+xlabel('Time (ms)')
+ylabel('Slot Presence')
+grid on
+
+%% Plot 3 : Allocated vs Free Slots
+subplot(3,2,3)
+plot([1 2],[AllocatedSlots FreeSlots],'-o','LineWidth',2)
+title('Frame Utilization')
+xlabel('1 = Allocated    2 = Free')
+ylabel('Number of Slots')
+xticks([1 2])
+xticklabels({'Allocated','Free'})
+grid on
+
+%% Plot 4 : Slot Distribution
+subplot(3,2,4)
+pie([AllocatedSlots FreeSlots])
+title('Slot Distribution')
+legend('Allocated','Free')
+
+%% Plot 5 : User-wise Slot Allocation
+subplot(3,2,5)
+stem(Users,Alloc,'filled','LineWidth',2)
+title('User Slot Allocation')
+xlabel('User Index')
+ylabel('Status')
+ylim([-0.2 1.2])
+grid on
+
+%% Plot 6 : Allocation vs Blocked Users
+subplot(3,2,6)
+plot(Users,Alloc,'-o','LineWidth',2)
+hold on
+plot(Users,Blocked,'-s','LineWidth',2)
+hold off
+title('TDMA Slot Utilization')
+xlabel('User Index')
+ylabel('Status')
+legend('Allocated','Blocked')
+ylim([-0.2 1.2])
+grid on
