@@ -1,0 +1,83 @@
+clc;
+clear;
+close all;
+
+%% Simulation Parameters
+numUsers = 10:10:200;      % User Density
+Bandwidth = 100;           % MHz
+Capacity = 1000;           % Maximum Mbps supported by gNodeB
+PacketSize = 1500;         % Bytes
+SimulationTime = 10;       % Seconds
+
+%% Initialize Arrays
+Throughput = zeros(size(numUsers));
+Latency = zeros(size(numUsers));
+PacketLoss = zeros(size(numUsers));
+SchedulerEfficiency = zeros(size(numUsers));
+
+%% Simulation Loop
+for i = 1:length(numUsers)
+
+    users = numUsers(i);
+
+    %% Random Traffic Demand
+    trafficDemand = users * (5 + rand()*10);   % Mbps per user
+
+    %% Round Robin Scheduler
+    allocatedBW = Bandwidth/users;
+
+    SchedulerEfficiency(i) = min(100,(allocatedBW/Bandwidth)*users*100);
+
+    %% Throughput
+    if trafficDemand <= Capacity
+        Throughput(i) = trafficDemand;
+    else
+        Throughput(i) = Capacity;
+    end
+
+    %% Latency Model
+    Latency(i) = 5 + (users/8) + rand()*2;
+
+    %% Packet Loss
+    if trafficDemand <= Capacity
+        PacketLoss(i) = rand()*0.5;
+    else
+        overload = trafficDemand - Capacity;
+        PacketLoss(i) = 0.5 + overload/40;
+    end
+
+end
+
+%% Plot Results
+
+figure;
+
+subplot(2,2,1)
+plot(numUsers,Throughput,'b-o','LineWidth',2)
+grid on
+xlabel('Number of Users')
+ylabel('Throughput (Mbps)')
+title('gNodeB Throughput')
+
+subplot(2,2,2)
+plot(numUsers,Latency,'r-*','LineWidth',2)
+grid on
+xlabel('Number of Users')
+ylabel('Latency (ms)')
+title('Latency vs User Density')
+
+subplot(2,2,3)
+plot(numUsers,PacketLoss,'k-s','LineWidth',2)
+grid on
+xlabel('Number of Users')
+ylabel('Packet Loss (%)')
+title('Packet Loss')
+
+subplot(2,2,4)
+plot(numUsers,SchedulerEfficiency,'g-d','LineWidth',2)
+grid on
+xlabel('Number of Users')
+ylabel('Scheduler Efficiency (%)')
+title('Round Robin Scheduling')
+
+sgtitle('Simulation of gNodeB Traffic Handling')
