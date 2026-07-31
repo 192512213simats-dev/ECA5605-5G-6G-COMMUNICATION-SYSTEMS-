@@ -1,0 +1,118 @@
+clc;
+clear;
+close all;
+
+%% ==========================================
+% MIMO and OFDMA Performance Analysis
+%% ==========================================
+
+%% -------------------------------
+% MIMO Parameters
+%% -------------------------------
+
+SNR_dB = 0:2:20;
+SNR = 10.^(SNR_dB/10);
+
+Nt = 2;
+Nr = 2;
+
+BER = zeros(1,length(SNR));
+Reliability = zeros(1,length(SNR));
+NoisePower = zeros(1,length(SNR));
+
+%% BER Simulation
+for i = 1:length(SNR)
+
+    bits = randi([0 1],10000,1);
+
+    symbols = 2*bits - 1;        % BPSK
+
+    H = (randn(Nr,Nt)+1j*randn(Nr,Nt))/sqrt(2);
+
+    noise = (randn(Nr,10000)+1j*randn(Nr,10000))/sqrt(2*SNR(i));
+
+    tx = H(1,1)*symbols' + noise(1,:);
+
+    rx = real(tx) > 0;
+
+    BER(i) = sum(rx'~=bits)/length(bits);
+
+    NoisePower(i) = 1/SNR(i);
+
+    Reliability(i) = 1-exp(-SNR(i)/10);
+
+end
+
+%% -------------------------------
+% OFDMA Parameters
+%% -------------------------------
+
+rb_bw = 180e3;          % 180 kHz
+
+users = 1:5;
+
+alloc_RB = [10 12 8 15 5];
+
+mod_eff = [2 4 6 4 2];
+
+throughput = (alloc_RB .* rb_bw .* mod_eff)/1e6;
+
+disp('------------------------------------');
+disp('User Throughput (Mbps)');
+disp(throughput');
+
+%% ==========================================
+% Plot Results
+%% ==========================================
+
+figure;
+
+%% Graph 1 : BER vs SNR
+subplot(3,2,1)
+semilogy(SNR_dB,BER,'-o','LineWidth',2)
+title('MIMO BER vs SNR')
+xlabel('SNR (dB)')
+ylabel('Bit Error Rate')
+grid on
+
+%% Graph 2 : Reliability from BER
+subplot(3,2,2)
+plot(SNR_dB,1-BER,'-s','LineWidth',2)
+title('MIMO Reliability (1-BER)')
+xlabel('SNR (dB)')
+ylabel('Reliability')
+grid on
+
+%% Graph 3 : Reliability Model
+subplot(3,2,3)
+plot(SNR_dB,Reliability,'-o','LineWidth',2)
+title('Reliability vs SNR')
+xlabel('SNR (dB)')
+ylabel('Reliability')
+grid on
+
+%% Graph 4 : Noise Power vs SNR
+subplot(3,2,4)
+plot(SNR_dB,NoisePower,'-d','LineWidth',2)
+title('Noise Power vs SNR')
+xlabel('SNR (dB)')
+ylabel('Noise Power')
+grid on
+
+%% Graph 5 : Throughput per User
+subplot(3,2,5)
+plot(users,throughput,'-o','LineWidth',2)
+title('OFDMA User Throughput')
+xlabel('User Index')
+ylabel('Throughput (Mbps)')
+grid on
+
+%% Graph 6 : Resource Blocks vs Throughput
+subplot(3,2,6)
+plot(alloc_RB,throughput,'-s','LineWidth',2)
+title('Resource Blocks vs Throughput')
+xlabel('Allocated Resource Blocks')
+ylabel('Throughput (Mbps)')
+grid on
+
+sgtitle('MIMO and OFDMA Performance Analysis');
