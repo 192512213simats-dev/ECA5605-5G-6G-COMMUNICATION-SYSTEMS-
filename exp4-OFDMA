@@ -1,0 +1,129 @@
+clc;
+clear;
+close all;
+
+%% ==========================================
+% OFDMA Resource Block Allocation Simulation
+%% ==========================================
+
+%% System Parameters
+bandwidth = 10e6;          % Total bandwidth (10 MHz)
+rb_size = 180e3;           % Resource Block bandwidth (180 kHz)
+
+% Total available Resource Blocks
+total_RB = floor(bandwidth/rb_size);
+
+%% ==========================================
+% PART 1 : Equal Resource Block Allocation
+%% ==========================================
+
+users1 = 1:6;
+
+% Equal RB allocation with remainder distribution
+base = floor(total_RB/length(users1));
+
+alloc_equal = base * ones(1,length(users1));
+
+alloc_equal(1:mod(total_RB,length(users1))) = ...
+    alloc_equal(1:mod(total_RB,length(users1))) + 1;
+
+util_equal = (alloc_equal/total_RB)*100;
+
+disp('---------------------------------------');
+disp('Total Resource Blocks');
+disp(total_RB);
+
+disp('Equal RB Allocation');
+disp(alloc_equal);
+
+disp('RB Utilization (%)');
+disp(util_equal);
+
+%% ==========================================
+% PART 2 : Example Resource Allocation
+%% ==========================================
+
+users2 = 1:5;
+
+total_RB_example = 50;
+
+alloc_example = [12 10 9 8 11];
+
+util_example = (alloc_example/total_RB_example)*100;
+
+disp('---------------------------------------');
+disp('Example RB Allocation');
+disp(alloc_example);
+
+disp('Example Utilization (%)');
+disp(util_example);
+
+%% ==========================================
+% PART 3 : Throughput Calculation
+%% ==========================================
+
+rb_bw = 180e3;     % Bandwidth per RB
+
+mod_eff = [2 4 6 4 2];      % Spectral efficiency
+
+throughput = (alloc_example .* rb_bw .* mod_eff)/1e6;
+
+disp('---------------------------------------');
+disp('User Throughput (Mbps)');
+disp(throughput);
+
+%% ==========================================
+% Plot Results
+%% ==========================================
+
+figure;
+
+%% Graph 1 : Equal RB Allocation
+subplot(3,2,1)
+stem(users1,alloc_equal,'filled','LineWidth',2)
+title('Equal OFDMA Resource Block Allocation')
+xlabel('User Index')
+ylabel('Allocated RBs')
+grid on
+
+%% Graph 2 : Equal RB Utilization
+subplot(3,2,2)
+plot(users1,util_equal,'-o','LineWidth',2)
+title('Equal Resource Block Utilization')
+xlabel('User Index')
+ylabel('Utilization (%)')
+grid on
+
+%% Graph 3 : Example RB Allocation
+subplot(3,2,3)
+plot(users2,alloc_example,'-o','LineWidth',2)
+title('Example Resource Block Allocation')
+xlabel('User Index')
+ylabel('Allocated RBs')
+grid on
+
+%% Graph 4 : Example RB Utilization
+subplot(3,2,4)
+plot(users2,util_example,'-s','LineWidth',2)
+title('Example Resource Block Utilization')
+xlabel('User Index')
+ylabel('Utilization (%)')
+grid on
+
+%% Graph 5 : User Throughput
+subplot(3,2,5)
+plot(users2,throughput,'-o','LineWidth',2)
+title('User Throughput')
+xlabel('User Index')
+ylabel('Throughput (Mbps)')
+grid on
+
+%% Graph 6 : RB Allocation vs Throughput
+subplot(3,2,6)
+plot(alloc_example,throughput,'-d','LineWidth',2)
+title('Resource Blocks vs Throughput')
+xlabel('Allocated Resource Blocks')
+ylabel('Throughput (Mbps)')
+grid on
+
+sgtitle('OFDMA Resource Block Allocation and Throughput Analysis');
