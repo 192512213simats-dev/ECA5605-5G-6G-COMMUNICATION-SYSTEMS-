@@ -1,0 +1,384 @@
+%% URBAN DYNAMIC SPECTRUM ACCESS - IMPROVED SIMULATION
+clear;
+clc;
+close all;
+
+rng(42);
+
+%% Parameters
+AREA = 1000;
+
+NUM_CH = 8;
+NUM_PRIMARY = 4;
+NUM_SEC = 25;
+
+INTF_RADIUS = 180;
+EXCL_RADIUS = 250;
+
+STEPS = 60;
+
+% Stronger ON/OFF variation
+P_ON_OFF = 0.45;
+P_OFF_ON = 0.25;
+
+% Building blockage
+P_BLOCKED = 0.20;
+
+%% Primary users
+pri.x = rand(NUM_PRIMARY,1) * AREA;
+pri.y = rand(NUM_PRIMARY,1) * AREA;
+
+pri.ch = [1;2;3;4];
+
+% Random initial states
+pri.act = rand(NUM_PRIMARY,1) > 0.5;
+
+%% Secondary users
+sec.x = rand(NUM_SEC,1) * AREA;
+sec.y = rand(NUM_SEC,1) * AREA;
+
+sec.ch = zeros(NUM_SEC,1);
+sec.handoff = zeros(NUM_SEC,1);
+sec.served = zeros(NUM_SEC,1);
+
+%% Building blockage
+blocked = rand(NUM_SEC,NUM_SEC) < P_BLOCKED;
+blocked = triu(blocked,1);
+blocked = blocked + blocked';
+
+%% Distance matrix
+D_sec = zeros(NUM_SEC,NUM_SEC);
+
+for i = 1:NUM_SEC
+    for j = 1:NUM_SEC
+
+        dx = sec.x(i) - sec.x(j);
+        dy = sec.y(i) - sec.y(j);
+
+        D_sec(i,j) = sqrt(dx^2 + dy^2);
+
+    end
+end
+
+%% History
+util_hist = zeros(STEPS,1);
+served_hist = zeros(STEPS,1);
+coll_hist = zeros(STEPS,1);
+fair_hist = zeros(STEPS,1);
+primary_active_hist = zeros(STEPS,1);
+
+%% Main simulation
+for t = 1:STEPS
+
+    %% 1. Primary user ON/OFF activity
+
+    for p = 1:NUM_PRIMARY
+
+        r = rand();
+
+        if pri.act(p)
+
+            if r < P_ON_OFF
+                pri.act(p) = false;
+            end
+
+        else
+
+            if r < P_OFF_ON
+                pri.act(p) = true;
+            end
+
+        end
+
+    end
+
+    %% Store number of active primary users
+
+    primary_active_hist(t) = sum(pri.act);
+
+    %% 2. Interference graph
+
+    adj = (D_sec < INTF_RADIUS) & ~blocked;
+
+    for i = 1:NUM_SEC
+        adj(i,i) = false;
+    end
+
+    %% 3. Node ordering
+
+    deg = sum(adj,2);
+
+    [~,order] = sort(deg,'descend');
+
+    assigned = zeros(NUM_SEC,1);
+
+    %% 4. Channel allocation
+
+    for idx = 1:NUM_SEC
+
+        n = order(idx);
+
+        %% All channels initially available
+
+        avail = true(1,NUM_CH);
+
+        %% Primary exclusion
+
+        for p = 1:NUM_PRIMARY
+
+            if pri.act(p)
+
+                dx = sec.x(n) - pri.x(p);
+                dy = sec.y(n) - pri.y(p);
+
+                distance = sqrt(dx^2 + dy^2);
+
+                if distance < EXCL_RADIUS
+
+                    avail(pri.ch(p)) = false;
+
+                end
+
+            end
+
+        end
+
+        %% Neighbor channels
+
+        used = false(1,NUM_CH);
+
+        for j = 1:NUM_SEC
+
+            if adj(n,j) && assigned(j) > 0
+
+                used(assigned(j)) = true;
+
+            end
+
+        end
+
+        %% Legal channels
+
+        candidates = find(avail & ~used);
+
+        if isempty(candidates)
+
+            newCh = 0;
+
+        else
+
+            % Random selection among available channels
+            newCh = candidates(randi(length(candidates)));
+
+        end
+
+        %% Handoff counting
+
+        if sec.ch(n) ~= newCh
+
+            if sec.ch(n) > 0 && newCh > 0
+
+                sec.handoff(n) = sec.handoff(n) + 1;
+
+            end
+
+        end
+
+        sec.ch(n) = newCh;
+
+        assigned(n) = newCh;
+
+    end
+
+    %% 5. Served users
+
+    servedMask = sec.ch > 0;
+
+    sec.served = sec.served + servedMask;
+
+    served_hist(t) = sum(servedMask) / NUM_SEC;
+
+    %% 6. Spectrum utilization
+
+    usedChannels = unique(sec.ch(servedMask));
+
+    util_hist(t) = length(usedChannels) / NUM_CH;
+
+    %% 7. Interference
+
+    collisions = 0;
+
+    for i = 1:NUM_SEC
+
+        if sec.ch(i) == 0
+            continue;
+        end
+
+        %% Secondary-secondary
+
+        for j = i+1:NUM_SEC
+
+            if adj(i,j)
+
+                if sec.ch(i) == sec.ch(j)
+
+                    collisions = collisions + 1;
+
+                end
+
+            end
+
+        end
+
+        %% Secondary-primary
+
+        for p = 1:NUM_PRIMARY
+
+            if pri.act(p) && pri.ch(p) == sec.ch(i)
+
+                dx = sec.x(i) - pri.x(p);
+                dy = sec.y(i) - pri.y(p);
+
+                distance = sqrt(dx^2 + dy^2);
+
+                if distance < EXCL_RADIUS
+
+                    collisions = collisions + 1;
+
+                end
+
+            end
+
+        end
+
+    end
+
+    coll_hist(t) = collisions;
+
+    %% 8. Jain fairness
+
+    s = sec.served;
+
+    if sum(s) > 0
+
+        fair_hist(t) = ...
+            (sum(s)^2) / ...
+            (NUM_SEC * sum(s.^2));
+
+    else
+
+        fair_hist(t) = 1;
+
+    end
+
+end
+
+%% =========================================================
+% RESULTS
+% ==========================================================
+
+fprintf('\n');
+fprintf('=============================================\n');
+fprintf(' URBAN DYNAMIC SPECTRUM ACCESS SIMULATION\n');
+fprintf('=============================================\n');
+
+fprintf('\nAverage Spectrum Utilization : %.3f\n', ...
+    mean(util_hist));
+
+fprintf('Average Served Fraction      : %.3f\n', ...
+    mean(served_hist));
+
+fprintf('Total Interference Violations: %.0f\n', ...
+    sum(coll_hist));
+
+fprintf('Average Handoffs per Node    : %.3f\n', ...
+    mean(sec.handoff));
+
+fprintf('Average Jain Fairness Index  : %.3f\n', ...
+    mean(fair_hist));
+
+fprintf('\nSimulation completed successfully!\n');
+
+%% =========================================================
+% PLOTS
+% ==========================================================
+
+figure('Position',[100 100 1100 750]);
+
+%% 1 Spectrum utilization
+
+subplot(2,2,1);
+
+plot(1:STEPS,util_hist,'b-','LineWidth',2);
+
+title('Spectrum Utilization');
+
+xlabel('Time Step');
+
+ylabel('Utilization');
+
+ylim([0 1]);
+
+xlim([1 STEPS]);
+
+grid on;
+
+%% 2 Served fraction
+
+subplot(2,2,2);
+
+plot(1:STEPS,served_hist,'g-','LineWidth',2);
+
+title('Fraction of Secondary Nodes Served');
+
+xlabel('Time Step');
+
+ylabel('Served Fraction');
+
+ylim([0 1]);
+
+xlim([1 STEPS]);
+
+grid on;
+
+%% 3 Interference
+
+subplot(2,2,3);
+
+plot(1:STEPS,coll_hist,'r-','LineWidth',2);
+
+title('Interference Violations per Step');
+
+xlabel('Time Step');
+
+ylabel('Violations');
+
+xlim([1 STEPS]);
+
+grid on;
+
+%% 4 Jain fairness
+
+subplot(2,2,4);
+
+plot(1:STEPS,fair_hist,'m-','LineWidth',2);
+
+title('Jain''s Fairness Index');
+
+xlabel('Time Step');
+
+ylabel('Fairness');
+
+ylim([0 1.05]);
+
+xlim([1 STEPS]);
+
+grid on;
+
+sgtitle('Urban Dynamic Spectrum Access - Simulation Results');
+
+%% Save
+
+saveas(gcf,'dsa_simulation_results.png');
+
+fprintf('\nChart saved as: dsa_simulation_results.png\n');
